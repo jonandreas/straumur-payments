@@ -506,35 +506,45 @@ class WC_Straumur_Webhook_Handler
 	}
 
 	/**
-	 * Handle an authorization event with auto-capture.
+	 * Handle an AUTHORISATION event when Straumur will auto-capture.
+	 * We log the auth and keep the order unpaid (on-hold) until the CAPTURE
+	 * webhook arrives; that second webhook will call maybe_mark_order_paid().
 	 *
-	 * @since 1.0.0
+	 * @since 1.2.0
 	 *
-	 * @param \WC_Order $order          The order object.
-	 * @param string    $display_amount Formatted authorized amount.
-	 * @param string    $card_number    Masked card number.
-	 * @param string    $three_d_text   Text describing 3D Secure state.
-	 * @param string    $auth_code      Authorization code.
-	 * @return true True on success.
+	 * @param \WC_Order $order            The WooCommerce order.
+	 * @param string    $display_amount   Human-readable authorised amount.
+	 * @param string    $card_number      Masked card number (e.g. •••• 1234).
+	 * @param string    $three_d_text     “verified by 3-D Secure” / “not verified…”.
+	 * @param string    $auth_code        Authorisation code from Straumur.
+	 * @param string    $payfac_reference Straumur/PSP transaction-id (optional).
+	 *
+	 * @return bool Always true – any WP_Error bubbles up earlier.
 	 */
 	private static function handle_authorization_auto_capture(
-		$order,
-		string $display_amount,
-		string $card_number,
-		string $three_d_text,
-		string $auth_code,
-		string $payfac_reference
+		WC_Order $order,
+		string   $display_amount,
+		string   $card_number,
+		string   $three_d_text,
+		string   $auth_code,
+		string   $payfac_reference = ''
 	): bool {
+
 		$note = sprintf(
-			/* translators: 1: authorized amount, 2: masked card number, 3: 3D Secure text, 4: auth code */
-			esc_html__('%1$s was authorized to card %2$s, %3$s. Auth code: %4$s. Payment captured automatically.', 'straumur-payments-for-woocommerce'),
+			/* translators: 1: amount, 2: masked card, 3: 3-D Secure text, 4: auth code */
+			esc_html__(
+				'%1$s was authorised to card %2$s, %3$s. Auth code: %4$s. Awaiting capture webhook.',
+				'straumur-payments-for-woocommerce'
+			),
 			esc_html($display_amount),
 			esc_html($card_number),
 			esc_html($three_d_text),
 			esc_html($auth_code)
 		);
 
-		self::maybe_mark_order_paid($order, $note, $payfac_reference);
+		$order->update_status('on-hold', $note);
+		$order->save();
+
 		return true;
 	}
 
@@ -688,14 +698,9 @@ class WC_Straumur_Webhook_Handler
 			esc_html($payfac_reference)
 		);
 
-		self::maybe_mark_order_paid($order, $note, $payfac_reference);
-		self::log_message(
-			sprintf(
-				'Capture processed for order %d: %s',
-				$order->get_id(),
-				$display_amount
-			)
-		);
+		$order->payment_complete($payfac_reference);
+		$order->add_order_note($note);
+		$order->save();
 
 		return true;
 	}
@@ -925,21 +930,17 @@ class WC_Straumur_Webhook_Handler
 			}
 		}
 
-		// Handle additional data separately to redact sensitive info
 		if (isset($data['additionalData']) && is_array($data['additionalData'])) {
 			$sanitized['additionalData'] = array();
 
-			// Copy most fields
 			foreach ($data['additionalData'] as $key => $value) {
-				// Skip or redact sensitive fields
 				if (in_array($key, array('token', 'cardNumber'), true)) {
-					continue; // Skip completely
+					continue;
 				}
 
 				$sanitized['additionalData'][$key] = sanitize_text_field($value);
 			}
 
-			// Add redacted versions of sensitive fields
 			if (isset($data['additionalData']['cardNumber'])) {
 				$card                                      = sanitize_text_field($data['additionalData']['cardNumber']);
 				$sanitized['additionalData']['cardNumber'] = preg_replace('/\d(?=\d{4})/', '*', $card);
