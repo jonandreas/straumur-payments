@@ -968,12 +968,6 @@ class WC_Straumur_Webhook_Handler
 
 		// 2. Always attach the explanatory note
 		$order->add_order_note($note);
-
-		// 3. Optional relabel for shippable goods when merchant
-		//    disables “Mark order Completed immediately?”
-		if (! WC_Straumur_Settings::is_complete_order_on_payment() && $order->needs_processing()) {
-			$order->update_status('processing');   // label only, no note needed
-		}
 	}
 
 	/**
