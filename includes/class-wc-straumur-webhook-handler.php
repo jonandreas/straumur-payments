@@ -472,18 +472,17 @@ class WC_Straumur_Webhook_Handler
 		$additional_data = is_array($data['additionalData'] ?? null)
 			? $data['additionalData'] : [];
 
-		$card_number   = sanitize_text_field($additional_data['cardNumber']   ?? '');
-		$auth_code     = sanitize_text_field($additional_data['authCode']     ?? '');
-		$three_d_auth  = sanitize_text_field($additional_data['threeDAuthenticated'] ?? 'false');
-		$three_d_text  = 'true' === $three_d_auth
+		$card_number  = sanitize_text_field($additional_data['cardNumber'] ?? '');
+		$auth_code    = sanitize_text_field($additional_data['authCode'] ?? '');
+		$three_d_auth = sanitize_text_field($additional_data['threeDAuthenticated'] ?? 'false');
+		$three_d_text = 'true' === $three_d_auth
 			? esc_html__('verified by 3D Secure', 'straumur-payments-for-woocommerce')
-			: esc_html__('not verified by 3D Secure', 'straumur-payments-for-woocommerce');
+			: esc_html__('not verified by 3-D Secure', 'straumur-payments-for-woocommerce');
 
-		// 2. Persist Straumur transaction ID for manual capture later
+		// 2. Persist the Straumur reference for later capture (no save here)
 		$order->update_meta_data('_straumur_payfac_reference', $payfac_reference);
-		$order->save();
 
-		// 3. Delegate to auto- vs. manual-capture handlers
+		// 3. Branch to auto vs manual capture (these both call save())
 		$manual_capture = 'yes' === $order->get_meta('_straumur_is_manual_capture');
 
 		if (! $manual_capture) {
