@@ -462,27 +462,29 @@ class WC_Straumur_Webhook_Handler
 	 * @param string    $display_amount Formatted amount for display.
 	 * @return true|WP_Error True on success, WP_Error on failure.
 	 */
-	private static function handle_authorization_event($order, array $data, string $display_amount, string $payfac_reference)
-	{
-		// Get payment details
-		$additional_data = isset($data['additionalData']) && is_array($data['additionalData'])
-			? $data['additionalData'] : array();
+	private static function handle_authorization_event(
+		WC_Order $order,
+		array    $data,
+		string   $display_amount,
+		string   $payfac_reference
+	): bool {
+		// 1. Extract additional data
+		$additional_data = is_array($data['additionalData'] ?? null)
+			? $data['additionalData'] : [];
 
-		$card_number = isset($additional_data['cardNumber'])
-			? sanitize_text_field($additional_data['cardNumber']) : '';
-
-		$auth_code = isset($additional_data['authCode'])
-			? sanitize_text_field($additional_data['authCode']) : '';
-
-		$three_d_auth = isset($additional_data['threeDAuthenticated'])
-			? sanitize_text_field($additional_data['threeDAuthenticated']) : 'false';
-
-		$three_d_text = ('true' === $three_d_auth)
+		$card_number   = sanitize_text_field($additional_data['cardNumber']   ?? '');
+		$auth_code     = sanitize_text_field($additional_data['authCode']     ?? '');
+		$three_d_auth  = sanitize_text_field($additional_data['threeDAuthenticated'] ?? 'false');
+		$three_d_text  = 'true' === $three_d_auth
 			? esc_html__('verified by 3D Secure', 'straumur-payments-for-woocommerce')
 			: esc_html__('not verified by 3D Secure', 'straumur-payments-for-woocommerce');
 
-		// Check if manual capture is enabled
-		$manual_capture = ('yes' === $order->get_meta('_straumur_is_manual_capture'));
+		// 2. Persist Straumur transaction ID for manual capture later
+		$order->update_meta_data('_straumur_payfac_reference', $payfac_reference);
+		$order->save();
+
+		// 3. Delegate to auto- vs. manual-capture handlers
+		$manual_capture = 'yes' === $order->get_meta('_straumur_is_manual_capture');
 
 		if (! $manual_capture) {
 			return self::handle_authorization_auto_capture(
@@ -493,18 +495,17 @@ class WC_Straumur_Webhook_Handler
 				$auth_code,
 				$payfac_reference
 			);
-		} else {
-			return self::handle_authorization_manual_capture(
-				$order,
-				$display_amount,
-				$card_number,
-				$three_d_text,
-				$auth_code,
-				$payfac_reference
-			);
 		}
-	}
 
+		return self::handle_authorization_manual_capture(
+			$order,
+			$display_amount,
+			$card_number,
+			$three_d_text,
+			$auth_code,
+			$payfac_reference
+		);
+	}
 	/**
 	 * Handle an AUTHORISATION event when Straumur will auto-capture.
 	 * We log the auth and keep the order unpaid (on-hold) until the CAPTURE
