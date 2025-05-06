@@ -420,7 +420,7 @@ class WC_Straumur_Webhook_Handler
 		// Process based on event type
 		switch ($event_type) {
 			case self::EVENT_AUTHORIZATION:
-				return self::handle_authorization_event($order, $data, $display_amount);
+				return self::handle_authorization_event($order, $data, $display_amount, $payfac_reference);
 
 			case self::EVENT_REFUND:
 				return self::handle_refund_event($order, $data, $display_amount, $payfac_reference);
@@ -462,7 +462,7 @@ class WC_Straumur_Webhook_Handler
 	 * @param string    $display_amount Formatted amount for display.
 	 * @return true|WP_Error True on success, WP_Error on failure.
 	 */
-	private static function handle_authorization_event($order, array $data, string $display_amount)
+	private static function handle_authorization_event($order, array $data, string $display_amount, string $payfac_reference)
 	{
 		// Get payment details
 		$additional_data = isset($data['additionalData']) && is_array($data['additionalData'])
@@ -490,7 +490,8 @@ class WC_Straumur_Webhook_Handler
 				$display_amount,
 				$card_number,
 				$three_d_text,
-				$auth_code
+				$auth_code,
+				$payfac_reference
 			);
 		} else {
 			return self::handle_authorization_manual_capture(
@@ -498,7 +499,8 @@ class WC_Straumur_Webhook_Handler
 				$display_amount,
 				$card_number,
 				$three_d_text,
-				$auth_code
+				$auth_code,
+				$payfac_reference
 			);
 		}
 	}
@@ -520,7 +522,8 @@ class WC_Straumur_Webhook_Handler
 		string $display_amount,
 		string $card_number,
 		string $three_d_text,
-		string $auth_code
+		string $auth_code,
+		string $payfac_reference
 	): bool {
 		$note = sprintf(
 			/* translators: 1: authorized amount, 2: masked card number, 3: 3D Secure text, 4: auth code */
