@@ -689,15 +689,24 @@ class WC_Straumur_Webhook_Handler
 
 	/**
 	 * Handle a capture event from Straumur (after manual capture).
+	 *
+	 * @param \WC_Order $order            The WooCommerce order object.
+	 * @param string    $display_amount   Display-friendly capture amount.
+	 * @param string    $payfac_reference Transaction/PSP reference from Straumur.
+	 * @return bool Always true on success.
 	 */
 	private static function handle_capture_event($order, string $display_amount, string $payfac_reference): bool
 	{
-		// If the merchant requested a capture, finalize the order here.
+		// If the merchant requested a capture earlier, finalize the order now.
 		if ('yes' === $order->get_meta('_straumur_capture_requested')) {
-			$order->payment_complete($payfac_reference);
+			// Instead of $order->payment_complete(), call the helper.
+			maybe_mark_order_as_paid($order, $payfac_reference);
+
+			// Clear the capture flag to avoid re-running on duplicate webhooks.
 			$order->delete_meta_data('_straumur_capture_requested');
 		}
 
+		// Add a note about the capture completion.
 		$note = sprintf(
 			esc_html__(
 				'Manual capture completed for %1$s via Straumur (reference: %2$s).',
@@ -860,7 +869,40 @@ class WC_Straumur_Webhook_Handler
 			);
 		}
 	}
+	/**
+	 * Mark the order as paid if it isn’t already.
+	 * Triggers the same core WooCommerce hooks that payment_complete() would,
+	 * without relying on order status changes.
+	 *
+	 * @param \WC_Order $order The WooCommerce order object.
+	 * @param string|null $transaction_id Transaction ID from Straumur (optional).
+	 * @return void
+	 */
+	function maybe_mark_order_as_paid(\WC_Order $order, ?string $transaction_id = null): void
+	{
+		// Bail if already paid
+		if ($order->is_paid()) {
+			return;
+		}
 
+		// Ensure a paid date is set
+		if (! $order->get_date_paid()) {
+			$order->set_date_paid(time()); // or gmdate('Y-m-d H:i:s')
+		}
+
+		// If we have a transaction ID, store it
+		if ($transaction_id) {
+			$order->set_transaction_id($transaction_id);
+		}
+
+		// Persist changes
+		$order->save();
+
+		// Manually fire the core WooCommerce "payment complete" hooks
+		do_action('woocommerce_payment_complete', $order->get_id());
+		do_action("woocommerce_payment_complete_order_status_{$order->get_status()}", $order->get_id());
+		do_action('woocommerce_payment_complete_order_id', $order->get_id());
+	}
 	/**
 	 * Check if an event key has already been processed for this order.
 	 *
