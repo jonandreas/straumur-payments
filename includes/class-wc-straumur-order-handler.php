@@ -119,9 +119,7 @@ class WC_Straumur_Order_Handler
 
 		$response = $api->capture($payfac_reference, $reference, $amount_minor, $currency);
 		if ($response) {
-			if (! $order->is_paid()) {
-				$order->payment_complete($payfac_reference);
-			}
+			$order->payment_complete($payfac_reference);
 			$order->add_order_note(__('Straumur payment capture request sent', 'straumur-payments-for-woocommerce'));
 			return true;
 		}
