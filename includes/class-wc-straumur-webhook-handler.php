@@ -688,25 +688,24 @@ class WC_Straumur_Webhook_Handler
 	}
 
 	/**
-	 * Handle a capture event from Straumur (e.g., after manual capture).
-	 *
-	 * @since 1.0.0
-	 *
-	 * @param \WC_Order $order           The order object.
-	 * @param string    $display_amount  Formatted capture amount.
-	 * @param string    $payfac_reference Payfac reference.
-	 * @return true True on success.
+	 * Handle a capture event from Straumur (after manual capture).
 	 */
 	private static function handle_capture_event($order, string $display_amount, string $payfac_reference): bool
 	{
+		// If the merchant requested a capture, finalize the order here.
+		if ('yes' === $order->get_meta('_straumur_capture_requested')) {
+			$order->payment_complete($payfac_reference);
+			$order->delete_meta_data('_straumur_capture_requested');
+		}
+
 		$note = sprintf(
-			/* translators: 1: captured amount, 2: payfac reference ID */
-			esc_html__('Manual capture completed for %1$s via Straumur (reference: %2$s).', 'straumur-payments-for-woocommerce'),
+			esc_html__(
+				'Manual capture completed for %1$s via Straumur (reference: %2$s).',
+				'straumur-payments-for-woocommerce'
+			),
 			esc_html($display_amount),
 			esc_html($payfac_reference)
 		);
-
-		$order->payment_complete($payfac_reference);
 		$order->add_order_note($note);
 		$order->save();
 

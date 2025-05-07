@@ -88,12 +88,6 @@ class WC_Straumur_Order_Handler
 		return new WP_Error('cancellation_failed', __('Failed to send cancellation request to Straumur.', 'straumur-payments-for-woocommerce'));
 	}
 
-	/**
-	 * Handle capture (On-hold -> Processing).
-	 *
-	 * @param int $order_id Order ID.
-	 * @return bool|WP_Error True on success, WP_Error on failure.
-	 */
 	public function handle_capture(int $order_id)
 	{
 		$order = wc_get_order($order_id);
@@ -111,16 +105,19 @@ class WC_Straumur_Order_Handler
 			return new WP_Error('no_reference', __('Cannot capture: missing payment references.', 'straumur-payments-for-woocommerce'));
 		}
 
+		// Call Straumur's API to request the capture
 		$amount       = (float) $order->get_total();
 		$amount_minor = (int) round($amount * 100);
 		$currency     = get_woocommerce_currency();
-
-		$api = new WC_Straumur_API();
+		$api          = new WC_Straumur_API();
 
 		$response = $api->capture($payfac_reference, $reference, $amount_minor, $currency);
 		if ($response) {
-			$order->payment_complete($payfac_reference);
-			$order->add_order_note(__('Straumur payment capture request sent', 'straumur-payments-for-woocommerce'));
+			// Instead of payment_complete(), just add meta that capture was requested
+			$order->update_meta_data('_straumur_capture_requested', 'yes');
+			$order->add_order_note(__('Straumur capture request sent. Awaiting Straumur confirmation via webhook.', 'straumur'));
+			$order->save();
+
 			return true;
 		}
 
