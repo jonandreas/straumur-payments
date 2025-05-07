@@ -17,6 +17,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_REST_Server;
 use WP_Error;
+use WC_Order;
 
 use function esc_html__;
 use function esc_html;
@@ -25,6 +26,7 @@ use function sprintf;
 use function wp_json_encode;
 use function number_format;
 use function absint;
+
 
 // Exit if accessed directly.
 if (! defined('ABSPATH')) {
@@ -463,7 +465,7 @@ class WC_Straumur_Webhook_Handler
 	 * @return true|WP_Error True on success, WP_Error on failure.
 	 */
 	private static function handle_authorization_event(
-		WC_Order $order,
+		\WC_Order $order,
 		array    $data,
 		string   $display_amount,
 		string   $payfac_reference
@@ -522,7 +524,7 @@ class WC_Straumur_Webhook_Handler
 	 * @return bool Always true – any WP_Error bubbles up earlier.
 	 */
 	private static function handle_authorization_auto_capture(
-		WC_Order $order,
+		\WC_Order $order,
 		string   $display_amount,
 		string   $card_number,
 		string   $three_d_text,
