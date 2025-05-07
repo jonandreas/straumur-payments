@@ -183,6 +183,11 @@ class WC_Straumur_Payment_Gateway extends WC_Payment_Gateway
 			return array('result' => 'failure');
 		}
 
+		// Ensure stock is reserved by setting status to 'pending'
+		if ($order->get_status() === 'auto-draft' || $order->get_status() === 'draft') {
+			$order->update_status('pending', __('Awaiting Straumur payment', 'straumur-payments-for-woocommerce'));
+		}
+
 		// Use get_api() to obtain the API instance
 		$api = $this->get_api();
 
@@ -208,13 +213,8 @@ class WC_Straumur_Payment_Gateway extends WC_Payment_Gateway
 		);
 
 		// Check if the order is a subscription.
-		$is_subscription = false;
-		if (
-			function_exists('wcs_order_contains_subscription')
-			&& wcs_order_contains_subscription($order_id)
-		) {
-			$is_subscription = true;
-		}
+		$is_subscription = function_exists('wcs_order_contains_subscription')
+			&& wcs_order_contains_subscription($order_id);
 
 		// Create session with Straumur.
 		$session = $api->create_session(
