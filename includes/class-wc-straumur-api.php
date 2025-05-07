@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Straumur API Class
  *
@@ -33,7 +34,8 @@ use function wp_json_encode;
  *
  * @since 1.0.0
  */
-class WC_Straumur_API {
+class WC_Straumur_API
+{
 
 	/**
 	 * Holds the singleton instance.
@@ -133,8 +135,9 @@ class WC_Straumur_API {
 	 *
 	 * @return WC_Straumur_API
 	 */
-	public static function instance(): WC_Straumur_API {
-		if ( is_null( self::$instance ) ) {
+	public static function instance(): WC_Straumur_API
+	{
+		if (is_null(self::$instance)) {
 			self::$instance = new self();
 		}
 		return self::$instance;
@@ -147,7 +150,8 @@ class WC_Straumur_API {
 	 *
 	 * @param bool $authorize_only Whether to authorize only (no auto-capture).
 	 */
-	public function __construct( bool $authorize_only = false ) {
+	public function __construct(bool $authorize_only = false)
+	{
 		$this->authorize_only              = $authorize_only;
 		$this->api_key                     = WC_Straumur_Settings::get_api_key();
 		$this->theme_key                   = WC_Straumur_Settings::get_theme_key();
@@ -158,9 +162,9 @@ class WC_Straumur_API {
 
 		// Retrieve checkout expiry from settings, ensuring it's within a valid range.
 		$hours = (float) WC_Straumur_Settings::get_checkout_expiry();
-		if ( $hours < 0.0833 ) {
+		if ($hours < 0.0833) {
 			$hours = 0.0833;
-		} elseif ( $hours > 24 ) {
+		} elseif ($hours > 24) {
 			$hours = 24;
 		}
 		$this->checkout_expiry = $hours;
@@ -169,7 +173,7 @@ class WC_Straumur_API {
 		$production_url = WC_Straumur_Settings::get_production_url();
 		$this->base_url = $this->test_mode
 			? 'https://checkout-api.staging.straumur.is/api/v1/'
-			: trailingslashit( $production_url );
+			: trailingslashit($production_url);
 
 		$this->logger = wc_get_logger();
 	}
@@ -199,7 +203,7 @@ class WC_Straumur_API {
 		string $abandon_url = ''
 	) {
 		$endpoint   = 'hostedcheckout/';
-		$expires_at = gmdate( 'Y-m-d\\TH:i:s.v\\Z', time() + (int) ( $this->checkout_expiry * HOUR_IN_SECONDS ) );
+		$expires_at = gmdate('Y-m-d\\TH:i:s.v\\Z', time() + (int) ($this->checkout_expiry * HOUR_IN_SECONDS));
 
 		$body = array(
 			'amount'             => $amount,
@@ -211,31 +215,31 @@ class WC_Straumur_API {
 		);
 
 		// Include line items if requested.
-		if ( $this->send_items ) {
+		if ($this->send_items) {
 			$body['items'] = $items;
 		}
 
 		// Use the theme key only in production mode.
-		if ( ! $this->test_mode && ! empty( $this->theme_key ) ) {
+		if (! $this->test_mode && ! empty($this->theme_key)) {
 			$body['themeKey'] = $this->theme_key;
 		}
 
 		// If manual capture is requested.
-		if ( $this->authorize_only ) {
+		if ($this->authorize_only) {
 			$body['isManualCapture'] = true;
 		}
 
 		// If subscription, set recurringProcessingModel.
-		if ( $is_subscription ) {
+		if ($is_subscription) {
 			$body['recurringProcessingModel'] = 'Subscription';
 		}
 
 		// Include abandon URL if provided.
-		if ( ! empty( $abandon_url ) ) {
+		if (! empty($abandon_url)) {
 			$body['abandonUrl'] = $abandon_url;
 		}
 
-		return $this->send_request( $endpoint, $body );
+		return $this->send_request($endpoint, $body);
 	}
 
 	/**
@@ -246,10 +250,11 @@ class WC_Straumur_API {
 	 * @param string $checkout_reference The Straumur checkout reference ID.
 	 * @return array|false Array on success, false otherwise.
 	 */
-	public function get_session_status( string $checkout_reference ) {
+	public function get_session_status(string $checkout_reference)
+	{
 		$endpoint = "hostedcheckout/status/{$checkout_reference}";
 
-		return $this->send_request( $endpoint, array(), 'GET' );
+		return $this->send_request($endpoint, array(), 'GET');
 	}
 
 	/**
@@ -263,7 +268,8 @@ class WC_Straumur_API {
 	 * @param string $currency         Currency code.
 	 * @return array|false Array on success, or false on failure.
 	 */
-	public function capture( string $payfac_reference, string $reference, int $amount, string $currency ) {
+	public function capture(string $payfac_reference, string $reference, int $amount, string $currency)
+	{
 		$body = array(
 			'reference'       => $reference,
 			'payfacReference' => $payfac_reference,
@@ -271,7 +277,7 @@ class WC_Straumur_API {
 			'currency'        => $currency,
 		);
 
-		return $this->send_request( 'modification/capture', $body );
+		return $this->send_request('modification/capture', $body);
 	}
 
 	/**
@@ -283,13 +289,14 @@ class WC_Straumur_API {
 	 * @param string $payfac_reference Payfac reference from Straumur.
 	 * @return bool True if the request was successful, false otherwise.
 	 */
-	public function reverse( string $reference, string $payfac_reference ): bool {
+	public function reverse(string $reference, string $payfac_reference): bool
+	{
 		$body = array(
 			'reference'       => $reference,
 			'payfacReference' => $payfac_reference,
 		);
 
-		$response = $this->send_request( 'modification/reverse', $body );
+		$response = $this->send_request('modification/reverse', $body);
 		return (bool) $response;
 	}
 
@@ -339,24 +346,38 @@ class WC_Straumur_API {
 		);
 
 		$endpoint = 'payment';
-		$result   = $this->send_request( $endpoint, $body );
+		$result   = $this->send_request($endpoint, $body);
 
-		if ( isset( $result['resultCode'] ) && 'Authorised' === $result['resultCode'] ) {
+		if (isset($result['resultCode']) && 'Authorised' === $result['resultCode']) {
 			// Process and normalize payment references for future operations like refunds
-			$result = $this->normalize_payment_references( $result, $reference );
-			$this->log( "Token payment authorised for reference {$reference}", 'info' );
-		} elseif ( isset( $result['resultCode'] ) && 'RedirectShopper' === $result['resultCode'] ) {
-			$this->log( "Token payment requires redirect for reference {$reference}", 'info' );
+			$result = $this->normalize_payment_references($result, $reference);
+			$this->log("Token payment authorised for reference {$reference}", 'info');
+		} elseif (isset($result['resultCode']) && 'RedirectShopper' === $result['resultCode']) {
+			$this->log("Token payment requires redirect for reference {$reference}", 'info');
 		} else {
 			$this->log(
-				"Token payment failed for reference {$reference} with response: " . wp_json_encode( $result ),
+				"Token payment failed for reference {$reference} with response: " . wp_json_encode($result),
 				'error'
 			);
 		}
 
-		return is_array( $result ) ? $result : array();
+		return is_array($result) ? $result : array();
 	}
-
+	private function log_json(string $title, array $data, string $level = 'info'): void
+	{
+		if (defined('WP_DEBUG') && WP_DEBUG) {
+			$message = sprintf(
+				"%s:\n%s",
+				$title,
+				wp_json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
+			);
+			if (method_exists($this->logger, $level)) {
+				$this->logger->{$level}($message, $this->context);
+			} else {
+				$this->logger->info($message, $this->context);
+			}
+		}
+	}
 	/**
 	 * Common function to send an API request to Straumur.
 	 *
@@ -365,7 +386,8 @@ class WC_Straumur_API {
 	 * @param string $method
 	 * @return array|false
 	 */
-	private function send_request( string $endpoint, array $body = array(), string $method = 'POST' ) {
+	private function send_request(string $endpoint, array $body = array(), string $method = 'POST')
+	{
 		$url = $this->base_url . $endpoint;
 
 		$args = array(
@@ -374,35 +396,25 @@ class WC_Straumur_API {
 			'timeout' => $this->timeout,
 		);
 
-		if ( 'GET' === $method && ! empty( $body ) ) {
-			// Construct query string for GET requests
-			$url                             = add_query_arg( $body, $url );
+		if ('GET' === $method && !empty($body)) {
+			$url = add_query_arg($body, $url);
 			$args['headers']['Content-Type'] = 'application/x-www-form-urlencoded';
-		} elseif ( 'POST' === $method && ! empty( $body ) ) {
-			// Encode body as JSON for POST requests
-			$args['body'] = wp_json_encode( $body );
+		} elseif ('POST' === $method && !empty($body)) {
+			$args['body'] = wp_json_encode($body);
 		}
 
-		// Log outgoing request
-		$this->log(
-			wp_json_encode(
-				array(
-					'straumur_request' => array(
-						'method'  => $method,
-						'url'     => $url,
-						'headers' => $args['headers'],
-						'body'    => $body,
-					),
-				)
-			),
-			'info'
-		);
+		$this->log_json('Straumur API Request', [
+			'method'  => $method,
+			'url'     => $url,
+			'headers' => $args['headers'],
+			'body'    => $body,
+		]);
 
-		// Execute request
-		$response = wp_remote_request( $url, $args );
+		$response = wp_remote_request($url, $args);
 
-		return $this->handle_response( $response, $url );
+		return $this->handle_response($response, $url);
 	}
+
 
 	/**
 	 * Handle the raw response from wp_remote_request().
@@ -413,49 +425,33 @@ class WC_Straumur_API {
 	 * @param string         $url      The requested URL.
 	 * @return array|false Decoded response on success, false on failure.
 	 */
-	private function handle_response( $response, string $url ) {
-		if ( is_wp_error( $response ) ) {
-			$this->log(
-				wp_json_encode(
-					array(
-						'straumur_response' => array(
-							'url'   => $url,
-							'error' => $response->get_error_message(),
-						),
-					)
-				),
-				'error'
-			);
+	private function handle_response($response, string $url)
+	{
+		if (is_wp_error($response)) {
+			$this->log_json('Straumur API Response Error', [
+				'url'   => $url,
+				'error' => $response->get_error_message(),
+			], 'error');
 			return false;
 		}
 
-		$response_code = wp_remote_retrieve_response_code( $response );
-		$response_body = wp_remote_retrieve_body( $response );
+		$response_code = wp_remote_retrieve_response_code($response);
+		$response_body = wp_remote_retrieve_body($response);
 
-		$this->log(
-			wp_json_encode(
-				array(
-					'straumur_response' => array(
-						'url'  => $url,
-						'code' => $response_code,
-						'body' => $response_body,
-					),
-				)
-			),
-			'info'
-		);
+		$response_data = json_decode($response_body, true);
 
-		$response_data = json_decode( $response_body, true );
-		if ( json_last_error() !== JSON_ERROR_NONE ) {
-			$this->log(
-				'JSON decode error: ' . json_last_error_msg(),
-				'error'
-			);
+		$this->log_json('Straumur API Response', [
+			'url'      => $url,
+			'httpCode' => $response_code,
+			'body'     => $response_data,
+		], $response_code >= 200 && $response_code < 300 ? 'info' : 'error');
+
+		if (json_last_error() !== JSON_ERROR_NONE) {
+			$this->log('JSON decode error: ' . json_last_error_msg(), 'error');
 			return false;
 		}
 
-		// Return data only if HTTP status is 2xx.
-		if ( $response_code >= 200 && $response_code < 300 ) {
+		if ($response_code >= 200 && $response_code < 300) {
 			return $response_data;
 		}
 
@@ -469,7 +465,8 @@ class WC_Straumur_API {
 	 *
 	 * @return array Associative array of headers.
 	 */
-	private function get_request_headers(): array {
+	private function get_request_headers(): array
+	{
 		return array(
 			'Content-Type' => 'application/json',
 			'X-API-key'    => $this->api_key,
@@ -488,9 +485,10 @@ class WC_Straumur_API {
 	 * @param string $reference The merchant reference.
 	 * @return array The normalized response.
 	 */
-	private function normalize_payment_references( array $response, string $reference ): array {
+	private function normalize_payment_references(array $response, string $reference): array
+	{
 		// Some API responses use pspReference instead of payfacReference
-		if ( ! isset( $response['payfacReference'] ) && isset( $response['pspReference'] ) ) {
+		if (! isset($response['payfacReference']) && isset($response['pspReference'])) {
 			$response['payfacReference'] = $response['pspReference'];
 			$this->log(
 				"Normalized pspReference to payfacReference ({$response['payfacReference']}) for reference {$reference}",
@@ -498,7 +496,7 @@ class WC_Straumur_API {
 			);
 		}
 
-		if ( ! isset( $response['payfacReference'] ) && isset( $response['additionalData']['payfacReference'] ) ) {
+		if (! isset($response['payfacReference']) && isset($response['additionalData']['payfacReference'])) {
 			$response['payfacReference'] = $response['additionalData']['payfacReference'];
 			$this->log(
 				"Extracted payfacReference ({$response['payfacReference']}) from additionalData for reference {$reference}",
@@ -506,7 +504,7 @@ class WC_Straumur_API {
 			);
 		}
 
-		if ( isset( $response['payfacReference'] ) ) {
+		if (isset($response['payfacReference'])) {
 			$this->log(
 				"Payment has payfacReference: {$response['payfacReference']} for merchant reference {$reference}",
 				'info'
@@ -530,12 +528,13 @@ class WC_Straumur_API {
 	 * @param string $level   Log level (e.g., 'info', 'error').
 	 * @return void
 	 */
-	private function log( string $message, string $level = 'info' ): void {
-		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-			if ( method_exists( $this->logger, $level ) ) {
-				$this->logger->{$level}( $message, $this->context );
+	private function log(string $message, string $level = 'info'): void
+	{
+		if (defined('WP_DEBUG') && WP_DEBUG) {
+			if (method_exists($this->logger, $level)) {
+				$this->logger->{$level}($message, $this->context);
 			} else {
-				$this->logger->info( $message, $this->context );
+				$this->logger->info($message, $this->context);
 			}
 		}
 	}

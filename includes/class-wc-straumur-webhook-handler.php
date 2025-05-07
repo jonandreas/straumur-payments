@@ -107,7 +107,7 @@ class WC_Straumur_Webhook_Handler
 			if (isset($log_data['additionalData']['token'])) {
 				$log_data['additionalData']['token'] = '[REDACTED]';
 			}
-			self::log_message('Incoming webhook: ' . wp_json_encode($log_data));
+			wc_get_logger()->info("Incoming webhook:\n" . json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 		} else {
 			self::log_message('Incoming webhook: Invalid JSON payload');
 		}
@@ -870,37 +870,66 @@ class WC_Straumur_Webhook_Handler
 		}
 	}
 	/**
-	 * Mark the order as paid if it isn’t already.
-	 * Triggers the same core WooCommerce hooks that payment_complete() would,
-	 * without relying on order status changes.
+	 * Safely mark an order as paid if it isn't already, and manually trigger
+	 * the WooCommerce payment-complete hooks.
 	 *
-	 * @param \WC_Order $order The WooCommerce order object.
+	 * @param \WC_Order   $order          The WooCommerce order object.
 	 * @param string|null $transaction_id Transaction ID from Straumur (optional).
-	 * @return void
 	 */
 	private static function maybe_mark_order_as_paid(\WC_Order $order, ?string $transaction_id = null): void
 	{
-		// Bail if already paid
+		// 1. Check if the order is already marked paid in WooCommerce.
 		if ($order->is_paid()) {
+			self::log_message(
+				sprintf(
+					'maybe_mark_order_as_paid: Order #%d is already paid; skipping.',
+					$order->get_id()
+				),
+				'info'
+			);
 			return;
 		}
 
-		// Ensure a paid date is set
+		// 2. Ensure a paid date is set (if none).
 		if (! $order->get_date_paid()) {
+			self::log_message(
+				sprintf(
+					'maybe_mark_order_as_paid: Setting paid date for order #%d.',
+					$order->get_id()
+				),
+				'info'
+			);
 			$order->set_date_paid(time()); // or gmdate('Y-m-d H:i:s')
 		}
 
-		// If we have a transaction ID, store it
+		// 3. Store the transaction ID if provided.
 		if ($transaction_id) {
+			self::log_message(
+				sprintf(
+					'maybe_mark_order_as_paid: Setting transaction ID "%s" on order #%d.',
+					$transaction_id,
+					$order->get_id()
+				),
+				'info'
+			);
 			$order->set_transaction_id($transaction_id);
 		}
 
-		// Persist changes
+		// Persist changes to the order.
 		$order->save();
 
-		// Manually fire the core WooCommerce "payment complete" hooks
+		// For clarity, log just before firing the hooks.
+		self::log_message(
+			sprintf(
+				'maybe_mark_order_as_paid: Firing woocommerce_payment_complete hooks for order #%d.',
+				$order->get_id()
+			),
+			'info'
+		);
+
+		// These are the correct, standard hooks that WooCommerce fires after payment_complete().
 		do_action('woocommerce_payment_complete', $order->get_id());
-		do_action("woocommerce_payment_complete_order_status_{$order->get_status()}", $order->get_id());
+		do_action('woocommerce_payment_complete_order_status_' . $order->get_status(), $order->get_id());
 		do_action('woocommerce_payment_complete_order_id', $order->get_id());
 	}
 	/**
