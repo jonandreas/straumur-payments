@@ -183,15 +183,32 @@ class WC_Straumur_Payment_Gateway extends WC_Payment_Gateway
 			return array('result' => 'failure');
 		}
 
-		// Ensure stock is reserved by setting status to 'pending'
-		if ($order->get_status() === 'auto-draft' || $order->get_status() === 'draft') {
-			$order->update_status('pending', __('Awaiting Straumur payment', 'straumur-payments-for-woocommerce'));
+		// Force status to 'pending' if the order is still in a draft state.
+		// This ensures WooCommerce reserves stock (provided "Hold stock" is enabled).
+		if (
+			'auto-draft' === $order->get_status()
+			|| 'draft' === $order->get_status()
+		) {
+			$order->update_status(
+				'pending',
+				__('Awaiting Straumur payment', 'straumur-payments-for-woocommerce')
+			);
+
+			// Add a direct note so you can see it in the order notes timeline.
+			$order->add_order_note(
+				__('Stock reserved by setting order to pending payment.', 'straumur-payments-for-woocommerce')
+			);
+			$order->save();
 		}
 
 		// Use get_api() to obtain the API instance
 		$api = $this->get_api();
 
-		$order->update_meta_data('_straumur_is_manual_capture', $this->authorize_only ? 'yes' : 'no');
+		// Whether manual capture is active
+		$order->update_meta_data(
+			'_straumur_is_manual_capture',
+			$this->authorize_only ? 'yes' : 'no'
+		);
 		$order->save();
 
 		// Convert order total to minor units.
@@ -202,21 +219,21 @@ class WC_Straumur_Payment_Gateway extends WC_Payment_Gateway
 		// Build line items if needed.
 		$items = $this->get_order_items($order, $amount);
 
-		// Build return URL.
+		// Build return URL
 		$return_url = add_query_arg(
-			array(
+			[
 				'wc-api'         => $this->id,
 				'order_id'       => $order->get_id(),
 				'straumur_nonce' => wp_create_nonce('straumur_process_return'),
-			),
+			],
 			home_url('/')
 		);
 
-		// Check if the order is a subscription.
+		// Check if the order is a subscription
 		$is_subscription = function_exists('wcs_order_contains_subscription')
 			&& wcs_order_contains_subscription($order_id);
 
-		// Create session with Straumur.
+		// Create session with Straumur
 		$session = $api->create_session(
 			$amount,
 			$currency,
@@ -237,16 +254,18 @@ class WC_Straumur_Payment_Gateway extends WC_Payment_Gateway
 				$this->context
 			);
 
-			return array('result' => 'failure');
+			return [
+				'result' => 'failure'
+			];
 		}
 
-		// Straumur returns the Hosted Checkout URL.
+		// Straumur returns the Hosted Checkout URL
 		$redirect_url = $session['url'];
 
-		return array(
+		return [
 			'result'   => 'success',
 			'redirect' => $redirect_url,
-		);
+		];
 	}
 
 	/**

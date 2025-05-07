@@ -541,7 +541,7 @@ class WC_Straumur_Webhook_Handler
 		$note = sprintf(
 			/* translators: 1: amount, 2: masked card, 3: 3-D Secure text, 4: auth code */
 			esc_html__(
-				'%1$s was authorised to card %2$s, %3$s. Auth code: %4$s. Awaiting capture webhook.',
+				'%1$s was authorised to card %2$s, %3$s. Auth code: %4$s.Payment has been captured',
 				'straumur-payments-for-woocommerce'
 			),
 			esc_html($display_amount),
