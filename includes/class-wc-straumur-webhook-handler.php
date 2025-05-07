@@ -507,6 +507,8 @@ class WC_Straumur_Webhook_Handler
 			$payfac_reference
 		);
 	}
+
+
 	/**
 	 * Handle an AUTHORISATION event when Straumur will auto-capture.
 	 * We log the auth and keep the order unpaid (on-hold) until the CAPTURE
@@ -532,6 +534,10 @@ class WC_Straumur_Webhook_Handler
 		string   $payfac_reference = ''
 	): bool {
 
+		// Mark order as paid/completed
+		$order->payment_complete($payfac_reference);
+
+		// Add an informative note to the order
 		$note = sprintf(
 			/* translators: 1: amount, 2: masked card, 3: 3-D Secure text, 4: auth code */
 			esc_html__(
@@ -544,7 +550,7 @@ class WC_Straumur_Webhook_Handler
 			esc_html($auth_code)
 		);
 
-		$order->update_status('on-hold', $note);
+		$order->add_order_note($note);
 		$order->save();
 
 		return true;
@@ -954,27 +960,7 @@ class WC_Straumur_Webhook_Handler
 
 
 
-	/**
-	 * Fire WooCommerce’s payment-complete flow once and (optionally) override the
-	 * visible label.
-	 *
-	 * @param \WC_Order $order            The order object.
-	 * @param string    $note             Human-readable note to attach afterwards.
-	 * @param string    $payfac_reference Straumur/PSP transaction-id (optional).
-	 */
-	private static function maybe_mark_order_paid($order, string $note, string $payfac_reference = ''): void
-	{
 
-		// 1. Canonical capture/settlement hook — idempotent guard
-		if (! $order->is_paid()) {
-			// -> sets _paid_date, status, transaction-id, and fires
-			//    woocommerce_payment_complete + all related web-hooks
-			$order->payment_complete($payfac_reference);
-		}
-
-		// 2. Always attach the explanatory note
-		$order->add_order_note($note);
-	}
 
 	/**
 	 * Format a numeric amount (in minor units) with currency.
