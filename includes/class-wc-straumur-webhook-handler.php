@@ -700,7 +700,7 @@ class WC_Straumur_Webhook_Handler
 		// If the merchant requested a capture earlier, finalize the order now.
 		if ('yes' === $order->get_meta('_straumur_capture_requested')) {
 			// Instead of $order->payment_complete(), call the helper.
-			maybe_mark_order_as_paid($order, $payfac_reference);
+			self::maybe_mark_order_as_paid($order, $payfac_reference);
 
 			// Clear the capture flag to avoid re-running on duplicate webhooks.
 			$order->delete_meta_data('_straumur_capture_requested');
@@ -878,7 +878,7 @@ class WC_Straumur_Webhook_Handler
 	 * @param string|null $transaction_id Transaction ID from Straumur (optional).
 	 * @return void
 	 */
-	function maybe_mark_order_as_paid(\WC_Order $order, ?string $transaction_id = null): void
+	private static function maybe_mark_order_as_paid(\WC_Order $order, ?string $transaction_id = null): void
 	{
 		// Bail if already paid
 		if ($order->is_paid()) {
