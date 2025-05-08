@@ -107,7 +107,7 @@ class WC_Straumur_Webhook_Handler
 			if (isset($log_data['additionalData']['token'])) {
 				$log_data['additionalData']['token'] = '[REDACTED]';
 			}
-			wc_get_logger()->info("Incoming webhook:\n" . json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+			self::log_message("Incoming webhook:\n" . wp_json_encode($log_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 		} else {
 			self::log_message('Incoming webhook: Invalid JSON payload');
 		}

@@ -1,0 +1,11 @@
+# Add patterns to ignore here, one per line
+# Example:
+# *.log
+# tmp/
+.repomixignore
+languages/
+repomix-output.xml
+repomix.config.json
+repodoc.md
+readme.txt
+README.md
