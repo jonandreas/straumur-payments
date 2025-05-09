@@ -876,7 +876,19 @@ class WC_Straumur_Webhook_Handler
 	 * @param \WC_Order   $order          The WooCommerce order object.
 	 * @param string|null $transaction_id Transaction ID from Straumur (optional).
 	 */
-	
+	private static function maybe_mark_order_as_paid(\WC_Order $order, ?string $transaction_id = null): void
+	{
+		// 1. Check if the order is already marked paid in WooCommerce.
+		if ($order->is_paid()) {
+			self::log_message(
+				sprintf(
+					'maybe_mark_order_as_paid: Order #%d is already paid; skipping.',
+					$order->get_id()
+				),
+				'info'
+			);
+			return;
+		}
 
 		// 2. Ensure a paid date is set (if none).
 		if (! $order->get_date_paid()) {
@@ -917,6 +929,7 @@ class WC_Straumur_Webhook_Handler
 
 		// These are the correct, standard hooks that WooCommerce fires after payment_complete().
 		self::log_message('Manually triggering woocommerce_payment_complete for order #' . $order->get_id());
+
 		do_action('woocommerce_payment_complete', $order->get_id());
 		do_action('woocommerce_payment_complete_order_status_' . $order->get_status(), $order->get_id());
 		do_action('woocommerce_payment_complete_order_id', $order->get_id());
